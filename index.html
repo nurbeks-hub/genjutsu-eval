@@ -355,6 +355,7 @@ function renderCompare() {
     t.dataset.key = key; if (r.silent) t.dataset.silent = '1'; return t;
   };
   const sysLabel = (sy, i, tk) => [el('i', { class: 'dot', style: `background:${hide ? 'var(--dim)' : SYS[sy].color}` }), hide ? `Вариант ${'ABC'[i]}` : SYS[sy].short, S.take === 'both' ? el('em', { text: ` · дубль ${tk}` }) : null,
+    !hide && sy === 'magi' && c.results[`magi_${m}_${tk}`]?.via ? el('em', { text: ` · ${c.results[`magi_${m}_${tk}`].via}` }) : null,
     el('kbd', { text: String(i + 1) })];
   const inTile = tile('input', ['Вход'], { src: U(c.input) });
   const teamTile = S.team && c.team?.file ? tile('team', ['Ролик команды'], { src: U(c.team.file) }) : null;
