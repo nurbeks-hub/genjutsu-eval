@@ -151,6 +151,12 @@ tr.sum td { font-weight: 700; }
 .stage:fullscreen .tile .lab { font-size: 18px; padding: 6px 12px; left: 16px; top: 16px; }
 .stage:fullscreen::after { content: 'Q — вход · W E T — столбцы · пробел — пуск · Esc — выйти'; position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%); color: rgba(255,255,255,.55); font-size: 12px; background: rgba(0,0,0,.5); padding: 4px 10px; border-radius: 6px; }
 
+/* строгая синхронизация: пока какой-то ролик догружается, стоят все */
+.bufmsg { display: none; color: var(--warn); font-size: 12px; font-weight: 600; }
+body.buffering .bufmsg { display: inline; }
+.tile.stall::after { content: ''; position: absolute; inset: 0; margin: auto; width: 34px; height: 34px; border: 3px solid rgba(255,255,255,.25); border-top-color: var(--warn); border-radius: 50%; animation: sp 1s linear infinite; }
+.tile.dead::before { content: 'ролик не загрузился'; position: absolute; inset: auto 0 8px 0; text-align: center; color: var(--bad); font-size: 12px; z-index: 2; }
+
 #gate { position: fixed; inset: 0; display: grid; place-items: center; background: var(--bg); z-index: 50; }
 #gate form { display: grid; gap: 12px; width: 320px; }
 #gate h1 { margin: 0; font-size: 20px; }
@@ -186,7 +192,7 @@ body.open #side, body.open #main { visibility: visible; }
 <script>
 (function () {
   "use strict";
-  var SALT = "8AAPMC27wmFHDRaEHhLbYA==", ITER = 600000, KN = "magi2-k-9502b677";
+  var SALT = "8AAPMC27wmFHDRaEHhLbYA==", ITER = 600000, KN = "gjeval-k-9502b677";
   var $ = function (s) { return document.querySelector(s); };
   function b64(s) { var b = atob(s), a = new Uint8Array(b.length); for (var i = 0; i < b.length; i++) a[i] = b.charCodeAt(i); return a; }
   function toB64(a) { var s = ""; for (var i = 0; i < a.length; i++) s += String.fromCharCode(a[i]); return btoa(s); }
@@ -379,6 +385,7 @@ function renderCompare() {
         el('button', { class: 'btn', text: '‹', title: 'кадр назад (,)', onclick: () => stepFrame(-1) }),
         el('button', { class: 'btn', text: '›', title: 'кадр вперёд (.)', onclick: () => stepFrame(1) }),
         seg([[0.25, '¼×'], [0.5, '½×'], [1, '1×']], S.rate, r => { S.rate = r; vids.forEach(v => { v.playbackRate = r; }); rerender(); }, 'sm'),
+        el('span', { class: 'bufmsg', text: 'догружается…' }),
         seek, tm)),
     S.info ? el('div', { class: 'info' },
       el('div', { class: 'refrow' }, refs.map(r => el('figure', {}, el('img', { src: U(r.file), loading: 'lazy' }), el('figcaption', { text: r.label || r.id })))),
@@ -400,22 +407,46 @@ function renderCompare() {
         title: `${x.title || ''}\nготово ${ready(x)}/${total()}${failed(x) ? `, отказов ${failed(x)}` : ''}`, onclick: () => { S.caseId = x.id; S.t = 0; S.focus = null; rerender(); } }, x.id, el('i', { style: `width:${100 * ready(x) / total()}%` }))))),
   ].filter(Boolean));
 
-  const mst = master();
-  if (mst) {
-    const t0 = S.t;
-    vids.forEach(v => v.addEventListener('loadedmetadata', () => { if (t0 && t0 < v.duration) v.currentTime = t0; }, { once: true }));
-    mst.addEventListener('timeupdate', () => {
-      const t = mst.currentTime; S.t = t;
-      tm.textContent = `${fmt(t)} / ${fmt(mst.duration)}`;
-      if (mst.duration) seek.value = Math.round(1000 * t / mst.duration);
-      vids.forEach(v => { if (v !== mst && v.readyState > 1 && Math.abs(v.currentTime - t) > 0.12 && t < (v.duration || 1e9) - 0.1) v.currentTime = t; });
-    });
-    mst.addEventListener('ended', () => { vids.forEach(v => { v.pause(); v.currentTime = 0; }); if (S.playing) vids.forEach(v => v.play().catch(() => {})); });
-  }
+  const t0 = S.t;
+  vids.forEach(v => {
+    v.addEventListener('loadedmetadata', () => { if (t0 && t0 < v.duration) v.currentTime = t0; }, { once: true });
+    v.addEventListener('error', () => { v.dataset.dead = '1'; v.closest('.tile')?.classList.add('dead'); });
+  });
+  renderCompare.ui = { seek, tm };
   if (!vids.some(v => v.dataset.key === S.snd)) S.snd = 'input';
   sound(S.snd);
-  if (S.playing) { vids.forEach(v => v.play().catch(() => {})); playBtn.textContent = '⏸'; }
+  S.buf = S.playing;   // после перерисовки ждём, пока все ролики будут готовы, и только тогда продолжаем
+  if (S.playing) playBtn.textContent = '⏸';
 }
+// Строгая синхронизация: все ролики идут только вместе. Если хоть один не догрузился — пауза у всех; после догрузки выравниваем время и продолжаем.
+const SYNC = { ended: (v, t) => v.duration && t >= v.duration - 0.06 };
+function syncTick() {
+  if (S.view !== 'compare' || !vids.length) return;
+  const m = master(); if (!m || !m.isConnected) return;
+  const L = vids.filter(v => v.isConnected && !v.dataset.dead);
+  const t = m.currentTime; S.t = t;
+  const ui = renderCompare.ui;
+  if (ui) { ui.tm.textContent = `${fmt(t)} / ${fmt(m.duration)}`; if (m.duration && document.activeElement !== ui.seek) ui.seek.value = Math.round(1000 * t / m.duration); }
+  const wait = L.filter(v => !(v !== m && SYNC.ended(v, t)) && (v.readyState < 3 || v.seeking));
+  document.querySelectorAll('.tile').forEach(x => x.classList.toggle('stall', S.playing && wait.some(v => v.dataset.key === x.dataset.key)));
+  document.body.classList.toggle('buffering', S.playing && wait.length > 0);
+  if (!S.playing) return;
+  if (m.ended || SYNC.ended(m, t)) { L.forEach(v => { v.pause(); v.currentTime = 0; }); S.buf = true; return; }   // конец — все с начала, вместе
+  if (wait.length) { if (!S.buf) { S.buf = true; L.forEach(v => v.pause()); } return; }
+  if (S.buf) {
+    const off = L.filter(v => v !== m && !SYNC.ended(v, t) && Math.abs(v.currentTime - t) > 0.04);
+    if (off.length) { off.forEach(v => { v.currentTime = t; }); return; }   // выровняли — ждём, пока встанут на место
+    S.buf = false;
+  }
+  L.forEach(v => {
+    if (v !== m && SYNC.ended(v, t)) { if (!v.paused) v.pause(); return; }
+    if (v !== m) { const d = v.currentTime - t; if (Math.abs(d) > 0.15) { v.currentTime = t; S.buf = true; } else v.playbackRate = S.rate * (d > 0.025 ? 0.94 : d < -0.025 ? 1.06 : 1); }
+    else v.playbackRate = S.rate;
+    if (v.paused) v.play().catch(() => {});
+  });
+  if (S.buf) L.forEach(v => v.pause());
+}
+setInterval(syncTick, 80);
 function rerender() { render(); }
 // Двойной клик — ролик на весь экран; Q/W/E/T в этом режиме мгновенно переключают, чей ролик на экране (вход и три столбца), время общее
 function enterFs(key) {
@@ -425,11 +456,11 @@ function enterFs(key) {
   sound(key);
   if (!document.fullscreenElement) { const r = (st.requestFullscreen || st.webkitRequestFullscreen).call(st); if (r && r.catch) r.catch(() => {}); }
 }
-function setTime(t) { S.t = t; vids.forEach(v => { v.currentTime = Math.min(t, Math.max(0, (v.duration || t) - 0.03)); }); }
+function setTime(t) { S.t = t; if (S.playing) { S.buf = true; vids.forEach(v => v.pause()); } vids.forEach(v => { v.currentTime = Math.min(t, Math.max(0, (v.duration || t) - 0.03)); }); }
 function stepFrame(d) { if (S.playing) toggle(); setTime(Math.max(0, (master()?.currentTime || 0) + d / 24)); }
 function toggle() {
   S.playing = !S.playing;
-  vids.forEach(v => (S.playing ? v.play().catch(() => {}) : v.pause()));
+  if (S.playing) S.buf = true; else { vids.forEach(v => v.pause()); S.buf = false; }
   if (renderCompare.playBtn) renderCompare.playBtn.textContent = S.playing ? '⏸' : '▶';
 }
 function sound(key) {
