@@ -159,6 +159,11 @@ body.buffering .bufmsg { display: inline; }
 
 .seg button.off { opacity: .35; cursor: default; }
 
+/* новые кейсы */
+.newtag { background: var(--acc); color: var(--acc-ink); border-radius: 5px; padding: 1px 7px; font-size: 11px; font-weight: 700; justify-self: start; }
+.chip.new { border-color: var(--acc); }
+.chip.new::before { content: '●'; color: var(--acc); font-size: 8px; margin-right: 4px; vertical-align: middle; }
+
 #gate { position: fixed; inset: 0; display: grid; place-items: center; background: var(--bg); z-index: 50; }
 #gate form { display: grid; gap: 12px; width: 320px; }
 #gate h1 { margin: 0; font-size: 20px; }
@@ -307,6 +312,7 @@ function renderSide() {
     return el('button', { class: 'blk' + (b.id === S.block ? ' on' : '') + (cs.length ? '' : ' empty'), onclick: () => { S.block = b.id; S.caseId = null; S.t = 0; if (S.view !== 'compare') S.view = 'compare'; render(); } },
       el('span', { class: 'n', text: String(i + 1) }),
       el('span', { class: 't' }, b.title, el('span', { class: 's', text: cs.length ? `${cs.length} кейсов · готово ${done}/${all}` : 'входы собираются' }),
+        cs.some(c => c.new) ? el('span', { class: 'newtag', text: `новых ${cs.filter(c => c.new).length}` }) : null,
         el('span', { class: 'pb' }, el('i', { style: `width:${all ? 100 * done / all : 0}%` }))),
       el('span', { class: 'c', title: 'оценено кейсов' }, el('b', { text: j }), `/${cs.length}`));
   }));
@@ -385,7 +391,7 @@ function renderCompare() {
       el('div', { class: 'row' },
         el('button', { class: 'btn nav', text: '←', title: 'предыдущий кейс', onclick: () => stepCase(-1) }),
         el('button', { class: 'btn nav', text: '→', title: 'следующий кейс', onclick: () => stepCase(1) }),
-        el('div', { class: 'ttl' }, el('b', { text: c.id }), el('span', { class: 'cnt', text: `${idx + 1} / ${cs.length}` }), el('span', { class: 'nm', title: c.title || '', text: c.title || '' })),
+        el('div', { class: 'ttl' }, el('b', { text: c.id }), c.new ? el('span', { class: 'newtag', text: 'новое' }) : null, el('span', { class: 'cnt', text: `${idx + 1} / ${cs.length}` }), el('span', { class: 'nm', title: c.title || '', text: c.title || '' })),
         el('div', { class: 'grow' }),
         seg(S.data.modes.map(k => [k, MODE[k] + (judged(c, k) ? ' ✓' : ''), 'клавиша M', S.data.triples_only && !['1', '2'].some(tk => has(c, k, tk))]), m, k => { S.mode = k; keep('mode'); rerender(); }),
         seg([['1', 'Дубль 1'], ['2', 'Дубль 2'], ['both', 'Оба']].map(x => [...x, 'клавиша D', S.data.triples_only && !has(c, m, x[0])]), S.take, k => { S.take = k; keep('take'); S.focus = null; rerender(); }),
@@ -415,7 +421,7 @@ function renderCompare() {
     fails.length ? el('div', { class: 'fails' }, 'Отказы: ', fails.map(([mm, sy, tk, r]) => el('span', { text: `${SYS[sy].short} · ${MODE[mm]} · дубль ${tk}: ${r.fail}` }))) : null,
     el('div', { class: 'chipbar' },
       el('button', { class: 'btn tg sm' + (S.onlyOpen ? ' on' : ''), text: 'только неоценённые', onclick: () => { S.onlyOpen = !S.onlyOpen; rerender(); } }),
-      el('div', { class: 'chips' }, cs.map(x => el('button', { class: 'chip' + (x.id === c.id ? ' on' : '') + (judgedAll(x) ? ' done' : S.data.modes.some(k => judged(x, k)) ? ' half' : '') + (failed(x) ? ' hasfail' : ''),
+      el('div', { class: 'chips' }, cs.map(x => el('button', { class: 'chip' + (x.new ? ' new' : '') + (x.id === c.id ? ' on' : '') + (judgedAll(x) ? ' done' : S.data.modes.some(k => judged(x, k)) ? ' half' : '') + (failed(x) ? ' hasfail' : ''),
         title: `${x.title || ''}\nготово ${ready(x)}/${total(x)}${failed(x) ? `, отказов ${failed(x)}` : ''}`, onclick: () => { S.caseId = x.id; S.t = 0; S.focus = null; rerender(); } }, x.id, el('i', { style: `width:${100 * ready(x) / total(x)}%` }))))),
   ].filter(Boolean));
 
