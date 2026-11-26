@@ -157,6 +157,8 @@ body.buffering .bufmsg { display: inline; }
 .tile.stall::after { content: ''; position: absolute; inset: 0; margin: auto; width: 34px; height: 34px; border: 3px solid rgba(255,255,255,.25); border-top-color: var(--warn); border-radius: 50%; animation: sp 1s linear infinite; }
 .tile.dead::before { content: 'ролик не загрузился'; position: absolute; inset: auto 0 8px 0; text-align: center; color: var(--bad); font-size: 12px; z-index: 2; }
 
+.seg button.off { opacity: .35; cursor: default; }
+
 #gate { position: fixed; inset: 0; display: grid; place-items: center; background: var(--bg); z-index: 50; }
 #gate form { display: grid; gap: 12px; width: 320px; }
 #gate h1 { margin: 0; font-size: 20px; }
@@ -321,8 +323,10 @@ function visibleCases() {
   return S.onlyOpen ? cs.filter(c => !judgedAll(c) || c.id === S.caseId) : cs;
 }
 function seg(items, cur, on, cls = '') {
-  return el('div', { class: 'seg ' + cls }, items.map(([k, t, tip]) => el('button', { class: k === cur ? 'on' : '', title: tip, text: t, onclick: () => on(k) })));
+  return el('div', { class: 'seg ' + cls }, items.map(([k, t, tip, off]) => el('button', { class: (k === cur ? 'on' : '') + (off ? ' off' : ''), title: off ? 'ещё не готово' : tip, text: t, onclick: () => { if (!off) on(k); } })));
 }
+// есть ли в этом режиме и дубле хоть что-то показать (в версии на GitHub — только цельные тройки)
+const has = (c, m, tk) => (tk === 'both' ? S.data.takes.every(x => has(c, m, x)) : S.data.systems.some(sy => c.results[`${sy}_${m}_${tk}`]));
 function renderCompare() {
   const b = S.data.blocks.find(x => x.id === S.block);
   const all = casesOf(S.block), cs = visibleCases();
@@ -330,7 +334,12 @@ function renderCompare() {
   vids = [];
   if (!all.length) { main.replaceChildren(el('h1', { text: b.title }), el('div', { class: 'empty', text: b.wait || 'Входы для этого направления ещё собираются — ролики появятся здесь сами.' })); return; }
   if (!cs.some(c => c.id === S.caseId)) S.caseId = (cs.find(c => !judgedAll(c)) || cs[0]).id;
-  const c = cs.find(x => x.id === S.caseId), idx = cs.indexOf(c), m = S.mode;
+  const c = cs.find(x => x.id === S.caseId), idx = cs.indexOf(c);
+  if (S.data.triples_only && !has(c, S.mode, S.take)) {   // выбранного режима/дубля у кейса ещё нет — показываем то, что готово
+    const opt = S.data.modes.flatMap(mm => ['1', '2'].map(tk => [mm, tk])).find(([mm, tk]) => has(c, mm, tk));
+    if (opt) { S.mode = opt[0]; S.take = opt[1]; }
+  }
+  const m = S.mode;
   const takes = S.take === 'both' ? S.data.takes : [S.take];
   const ord = order(c, m), hide = hidden(c, m);
   const land = (c.w || 9) > (c.h || 16) * 1.05;
@@ -375,8 +384,8 @@ function renderCompare() {
         el('button', { class: 'btn nav', text: '→', title: 'следующий кейс', onclick: () => stepCase(1) }),
         el('div', { class: 'ttl' }, el('b', { text: c.id }), el('span', { class: 'cnt', text: `${idx + 1} / ${cs.length}` }), el('span', { class: 'nm', title: c.title || '', text: c.title || '' })),
         el('div', { class: 'grow' }),
-        seg(S.data.modes.map(k => [k, MODE[k] + (judged(c, k) ? ' ✓' : ''), 'клавиша M']), m, k => { S.mode = k; keep('mode'); rerender(); }),
-        seg([['1', 'Дубль 1'], ['2', 'Дубль 2'], ['both', 'Оба']].map(x => [...x, 'клавиша D']), S.take, k => { S.take = k; keep('take'); S.focus = null; rerender(); }),
+        seg(S.data.modes.map(k => [k, MODE[k] + (judged(c, k) ? ' ✓' : ''), 'клавиша M', S.data.triples_only && !['1', '2'].some(tk => has(c, k, tk))]), m, k => { S.mode = k; keep('mode'); rerender(); }),
+        seg([['1', 'Дубль 1'], ['2', 'Дубль 2'], ['both', 'Оба']].map(x => [...x, 'клавиша D', S.data.triples_only && !has(c, m, x[0])]), S.take, k => { S.take = k; keep('take'); S.focus = null; rerender(); }),
         el('button', { class: 'btn tg' + (S.blind ? ' on' : ''), text: 'Вслепую', title: 'спрятать названия и перемешать столбцы (B)', onclick: () => { S.blind = !S.blind; keep('blind'); rerender(); } }),
         c.team?.file ? el('button', { class: 'btn tg' + (S.team ? ' on' : ''), text: 'Ролик команды', onclick: () => { S.team = !S.team; keep('team'); rerender(); } }) : null,
         el('button', { class: 'btn tg' + (S.info ? ' on' : ''), text: 'Задание', title: 'референсы и текст задания (I)', onclick: () => { S.info = !S.info; keep('info'); rerender(); } })),
