@@ -267,10 +267,12 @@ const judgedAll = c => S.data.modes.every(m => judged(c, m));
 const cells = (c, m) => S.data.systems.flatMap(sy => S.data.takes.map(tk => c.results[`${sy}_${m}_${tk}`]));
 const ready = c => S.data.modes.flatMap(m => cells(c, m)).filter(r => r?.src).length;
 const failed = c => S.data.modes.flatMap(m => cells(c, m)).filter(r => r?.fail).length;
-const total = () => S.data.systems.length * S.data.modes.length * S.data.takes.length;
+const total = c => (c ? S.data.modes.reduce((n, m) => n + order0(c, m).length * S.data.takes.length, 0) : S.data.systems.length * S.data.modes.length * S.data.takes.length);
+const order0 = (c, m) => S.data.systems.filter(sy => sy !== 'lite' || S.data.takes.some(tk => c.results[`lite_${m}_${tk}`]));
 // порядок столбцов: обычный или перемешанный (вслепую), устойчивый для кейса и режима
 function order(c, m) {
-  const a = [...S.data.systems];
+  // Kling в Lite больше не генерируется: где его роликов нет вовсе, столбец не показываем — сравнение идёт парой
+  const a = S.data.systems.filter(sy => sy !== 'lite' || S.data.takes.some(tk => c.results[`lite_${m}_${tk}`]));
   if (!S.blind) return a;
   let h = 2166136261;
   for (const ch of c.id + m) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
@@ -300,7 +302,7 @@ function renderSide() {
   });
   $('#blocks').replaceChildren(...S.data.blocks.map((b, i) => {
     const cs = casesOf(b.id);
-    const done = cs.reduce((a, c) => a + ready(c), 0), all = cs.length * total();
+    const done = cs.reduce((a, c) => a + ready(c), 0), all = cs.reduce((a, c) => a + total(c), 0);
     const j = cs.filter(judgedAll).length;
     return el('button', { class: 'blk' + (b.id === S.block ? ' on' : '') + (cs.length ? '' : ' empty'), onclick: () => { S.block = b.id; S.caseId = null; S.t = 0; if (S.view !== 'compare') S.view = 'compare'; render(); } },
       el('span', { class: 'n', text: String(i + 1) }),
@@ -311,9 +313,9 @@ function renderSide() {
 }
 
 function stamp() {
-  const all = S.data.cases, t = total();
+  const all = S.data.cases;
   const done = all.reduce((a, c) => a + ready(c), 0), fl = all.reduce((a, c) => a + failed(c), 0);
-  $('.brand .b2').textContent = `готово ${done} из ${all.length * t} · отказов ${fl} · обновлено ${new Date().toLocaleTimeString('ru-RU')}`;
+  $('.brand .b2').textContent = `готово ${done} из ${all.reduce((a, c) => a + total(c), 0)} · отказов ${fl} · обновлено ${new Date().toLocaleTimeString('ru-RU')}`;
 }
 /* ---------- сравнение ---------- */
 let vids = [];
@@ -364,8 +366,8 @@ function renderCompare() {
   let stage;
   if (S.focus) stage = el('div', { class: 'stage focus ' + (land ? 'land' : 'port') }, inTile, sysTiles);
   else if (S.take === 'both') stage = el('div', { class: 'stage both ' + (land ? 'land' : 'port') },
-    el('div', { class: 'srcrow' }, inTile, teamTile), el('div', { class: 'grid3' }, sysTiles));
-  else stage = el('div', { class: 'stage one ' + (land ? 'land' : 'port'), style: `--n:${nTop + 3}` }, inTile, teamTile, sysTiles);
+    el('div', { class: 'srcrow' }, inTile, teamTile), el('div', { class: 'grid3', style: `grid-template-columns:repeat(${ord.length}, minmax(0, 1fr))` }, sysTiles));
+  else stage = el('div', { class: 'stage one ' + (land ? 'land' : 'port'), style: `--n:${nTop + ord.length}` }, inTile, teamTile, sysTiles);
 
   const wk = `win|${c.id}|${m}`, w = mark(wk);
   const pick = async k => { await setMark(wk, w === k ? null : k); if (w !== k && S.auto) advance(); else rerender(); };
@@ -414,7 +416,7 @@ function renderCompare() {
     el('div', { class: 'chipbar' },
       el('button', { class: 'btn tg sm' + (S.onlyOpen ? ' on' : ''), text: 'только неоценённые', onclick: () => { S.onlyOpen = !S.onlyOpen; rerender(); } }),
       el('div', { class: 'chips' }, cs.map(x => el('button', { class: 'chip' + (x.id === c.id ? ' on' : '') + (judgedAll(x) ? ' done' : S.data.modes.some(k => judged(x, k)) ? ' half' : '') + (failed(x) ? ' hasfail' : ''),
-        title: `${x.title || ''}\nготово ${ready(x)}/${total()}${failed(x) ? `, отказов ${failed(x)}` : ''}`, onclick: () => { S.caseId = x.id; S.t = 0; S.focus = null; rerender(); } }, x.id, el('i', { style: `width:${100 * ready(x) / total()}%` }))))),
+        title: `${x.title || ''}\nготово ${ready(x)}/${total(x)}${failed(x) ? `, отказов ${failed(x)}` : ''}`, onclick: () => { S.caseId = x.id; S.t = 0; S.focus = null; rerender(); } }, x.id, el('i', { style: `width:${100 * ready(x) / total(x)}%` }))))),
   ].filter(Boolean));
 
   const t0 = S.t;
