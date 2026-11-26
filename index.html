@@ -1,0 +1,543 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Genjutsu — эвал</title>
+<style>
+:root {
+  --bg: #0c0d10; --panel: #15171c; --panel2: #1c1f26; --line: #2a2e38;
+  --text: #e9ebf1; --dim: #8a91a2; --acc: #d7ff3e; --acc-ink: #10130a;
+  --ok: #4ade80; --bad: #f87171; --warn: #fbbf24;
+  --prod: #7cc4ff; --magi: #d7ff3e; --lite: #ff9ecb;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body { background: var(--bg); color: var(--text); font: 14px/1.4 -apple-system, "SF Pro Text", Inter, system-ui, sans-serif; display: flex; }
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+kbd { background: var(--panel2); border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; font: 11px ui-monospace, monospace; color: var(--dim); }
+a { color: var(--prod); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+#side { width: 256px; flex: none; height: 100vh; overflow-y: auto; background: var(--panel); border-right: 1px solid var(--line); padding: 16px 10px; display: flex; flex-direction: column; gap: 12px; }
+.brand { padding: 0 6px; }
+.brand .b1 { font-size: 17px; font-weight: 700; letter-spacing: -.01em; }
+.brand .b2 { color: var(--dim); font-size: 12px; margin-top: 2px; }
+#views { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; background: var(--bg); padding: 4px; border-radius: 10px; }
+#views button { border: 0; background: transparent; padding: 7px 0; border-radius: 7px; color: var(--dim); font-weight: 600; font-size: 13px; }
+#views button.on { background: var(--acc); color: var(--acc-ink); }
+#blocks { display: flex; flex-direction: column; gap: 2px; }
+.blk { display: grid; grid-template-columns: 18px 1fr auto; align-items: start; gap: 6px; border: 0; background: transparent; text-align: left; padding: 8px; border-radius: 8px; }
+.blk:hover { background: var(--panel2); }
+.blk.on { background: var(--panel2); box-shadow: inset 2px 0 0 var(--acc); }
+.blk.empty { opacity: .5; }
+.blk .n { color: var(--dim); font: 12px ui-monospace, monospace; padding-top: 2px; }
+.blk .t { font-weight: 600; display: grid; gap: 3px; }
+.blk .s { color: var(--dim); font-size: 11px; font-weight: 400; }
+.blk .pb { height: 3px; background: var(--line); border-radius: 2px; overflow: hidden; display: block; }
+.blk .pb i { display: block; height: 100%; background: var(--ok); }
+.blk .c { color: var(--dim); font: 12px ui-monospace, monospace; padding-top: 2px; }
+.blk .c b { color: var(--text); }
+.legend { margin-top: auto; color: var(--dim); font-size: 11.5px; display: grid; gap: 5px; padding: 10px 6px 0; border-top: 1px solid var(--line); }
+
+#main { flex: 1; min-width: 0; height: 100vh; overflow-y: auto; padding: 0 20px 40px; }
+h1 { font-size: 22px; margin: 20px 0 4px; letter-spacing: -.02em; }
+h3 { font-size: 15px; margin: 22px 0 8px; }
+.sub { color: var(--dim); margin-bottom: 12px; max-width: 900px; }
+.empty { border: 1px dashed var(--line); border-radius: 12px; padding: 28px; color: var(--dim); max-width: 760px; margin-top: 16px; }
+.btn { border: 1px solid var(--line); background: var(--panel2); border-radius: 8px; padding: 6px 11px; font-weight: 600; font-size: 13px; white-space: nowrap; }
+.btn:hover { border-color: var(--dim); }
+.btn.acc { background: var(--acc); color: var(--acc-ink); border-color: var(--acc); }
+.btn.tg { color: var(--dim); }
+.btn.tg.on { color: var(--text); border-color: var(--acc); box-shadow: inset 0 0 0 1px var(--acc); }
+.btn.sm { padding: 3px 9px; font-size: 12px; }
+.btn.play { width: 44px; font-size: 15px; }
+.btn.nav { width: 36px; padding: 6px 0; }
+.seg { display: inline-flex; background: var(--bg); border: 1px solid var(--line); border-radius: 9px; padding: 2px; }
+.seg button { border: 0; background: transparent; padding: 5px 11px; border-radius: 7px; color: var(--dim); font-weight: 600; font-size: 13px; white-space: nowrap; }
+.seg button.on { background: var(--panel2); color: var(--text); box-shadow: 0 0 0 1px var(--line); }
+.seg.sm button { padding: 5px 8px; }
+
+.top { position: sticky; top: 0; z-index: 6; background: var(--bg); padding: 12px 0 10px; border-bottom: 1px solid var(--line); margin-bottom: 12px; display: grid; gap: 8px; }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.grow { flex: 1; }
+.ttl { display: flex; gap: 10px; align-items: baseline; min-width: 0; }
+.ttl b { font-size: 18px; }
+.ttl .cnt { color: var(--dim); font: 12px ui-monospace, monospace; }
+.ttl .nm { color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 38vw; }
+.seek { flex: 1; min-width: 160px; accent-color: var(--acc); }
+.tm { font: 12px ui-monospace, monospace; color: var(--dim); min-width: 96px; text-align: right; }
+
+.info { display: grid; grid-template-columns: auto 1fr; gap: 14px; margin-bottom: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px; }
+.refrow { display: flex; gap: 8px; }
+.refrow figure { margin: 0; width: 120px; }
+.refrow img { width: 120px; height: 90px; object-fit: cover; border-radius: 6px; display: block; background: #000; }
+.refrow figcaption { color: var(--dim); font-size: 11px; margin-top: 3px; line-height: 1.25; }
+.pr { color: var(--dim); font-size: 12.5px; max-height: 130px; overflow: auto; }
+.pr b { color: var(--text); }
+.pr .meta { margin-top: 6px; font-size: 12px; }
+
+.stage { display: grid; gap: 8px; }
+.stage.one.port { grid-template-columns: repeat(var(--n), minmax(0, 1fr)); }
+.stage.one.land { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.stage.both { gap: 8px; }
+.stage.both .srcrow { display: flex; gap: 8px; justify-content: center; }
+.stage.both .srcrow .tile { width: min(32%, 420px); }
+.stage.both.port .srcrow .tile { width: min(16%, 220px); }
+.stage.both .grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.stage.both.port { grid-template-columns: auto 1fr; align-items: start; }
+.stage.both.port .srcrow { flex-direction: column; }
+.stage.both.port .srcrow .tile { width: 200px; }
+.stage.focus { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.tile { background: #000; border: 2px solid var(--line); border-radius: 10px; overflow: hidden; position: relative; cursor: pointer; display: grid; place-items: center; }
+.tile video { width: 100%; display: block; background: #000; object-fit: contain; }
+.stage.one.port .tile video { max-height: calc(100vh - 250px); }
+.stage.one.land .tile video { max-height: calc(50vh - 130px); }
+.stage.both .grid3 .tile video { max-height: calc(50vh - 150px); }
+.stage.focus .tile video { max-height: calc(100vh - 250px); }
+.tile.snd { border-color: var(--acc); }
+.tile .lab { position: absolute; left: 6px; top: 6px; background: rgba(0, 0, 0, .74); border-radius: 6px; padding: 3px 8px; font-size: 12.5px; font-weight: 700; pointer-events: none; display: flex; gap: 6px; align-items: center; z-index: 2; }
+.tile .lab em { font-style: normal; color: var(--dim); font-weight: 500; }
+.tile .lab kbd { margin-left: 2px; }
+.tile .spk { position: absolute; left: 8px; bottom: 6px; font-size: 13px; opacity: 0; pointer-events: none; }
+.tile.snd .spk { opacity: 1; }
+.tile .star { position: absolute; right: 6px; top: 4px; border: 0; background: rgba(0, 0, 0, .6); border-radius: 6px; font-size: 16px; color: var(--dim); padding: 1px 6px; z-index: 2; }
+.tile .star.on { color: var(--warn); }
+.tile.none { min-height: 180px; background: var(--panel); border-style: dashed; cursor: default; }
+.tile .wait { color: var(--dim); font-size: 12.5px; display: grid; gap: 8px; justify-items: center; text-align: center; padding: 12px; }
+.tile.fail .wait { color: var(--bad); font-weight: 700; }
+.tile.fail .wait small { color: var(--dim); font-weight: 400; }
+.spin { width: 18px; height: 18px; border: 2px solid var(--line); border-top-color: var(--dim); border-radius: 50%; animation: sp 1s linear infinite; }
+@keyframes sp { to { transform: rotate(360deg); } }
+.dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+
+.verdict { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 12px; padding: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+.verdict .q { font-weight: 700; margin-right: 4px; }
+.btn.v { display: inline-flex; gap: 7px; align-items: center; padding: 8px 14px; border-color: var(--c, var(--line)); }
+.btn.v.on { background: var(--c, var(--text)); color: #0b0c0f; border-color: var(--c, var(--text)); }
+.btn.v.on kbd { background: rgba(0, 0, 0, .15); border-color: rgba(0, 0, 0, .25); color: #0b0c0f; }
+.auto { color: var(--dim); font-size: 12px; display: flex; gap: 5px; align-items: center; }
+.note { flex: 1; min-width: 180px; background: var(--bg); border: 1px solid var(--line); border-radius: 7px; padding: 7px 9px; font-size: 13px; }
+.fails { margin-top: 8px; color: var(--bad); font-size: 12px; display: flex; gap: 10px; flex-wrap: wrap; }
+.fails span { color: var(--dim); }
+.chipbar { margin-top: 14px; display: grid; gap: 8px; justify-items: start; }
+.chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.chip { border: 1px solid var(--line); background: var(--panel); border-radius: 7px; padding: 4px 8px 6px; font: 12px ui-monospace, monospace; color: var(--dim); position: relative; overflow: hidden; }
+.chip i { position: absolute; left: 0; bottom: 0; height: 2px; background: var(--dim); }
+.chip.on { border-color: var(--acc); color: var(--text); }
+.chip.done { color: var(--ok); }
+.chip.done i { background: var(--ok); }
+.chip.half { color: var(--warn); }
+.chip.hasfail::after { content: ''; position: absolute; right: 3px; top: 3px; width: 5px; height: 5px; border-radius: 50%; background: var(--bad); }
+
+table { border-collapse: collapse; width: 100%; max-width: 1100px; }
+th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: right; font-variant-numeric: tabular-nums; }
+th:first-child, td:first-child { text-align: left; }
+th { color: var(--dim); font-weight: 600; font-size: 12px; }
+td.best { color: var(--acc); font-weight: 700; }
+tr.sum td { font-weight: 700; }
+.notes { display: grid; gap: 6px; color: var(--dim); }
+.notes div { cursor: pointer; }
+.notes b { color: var(--text); }
+
+/* полный экран: один ролик, переключение Q/W/E/T */
+.stage:fullscreen { display: block; background: #000; }
+.stage:fullscreen .srcrow, .stage:fullscreen .grid3 { display: contents; }
+.stage:fullscreen .tile { display: none; }
+.stage:fullscreen .tile.fsOn { display: grid; width: 100vw; height: 100vh; border: 0; border-radius: 0; }
+.stage:fullscreen .tile.fsOn video { width: 100vw; height: 100vh; max-height: none !important; }
+.stage:fullscreen .tile .lab { font-size: 18px; padding: 6px 12px; left: 16px; top: 16px; }
+.stage:fullscreen::after { content: 'Q — вход · W E T — столбцы · пробел — пуск · Esc — выйти'; position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%); color: rgba(255,255,255,.55); font-size: 12px; background: rgba(0,0,0,.5); padding: 4px 10px; border-radius: 6px; }
+
+#gate { position: fixed; inset: 0; display: grid; place-items: center; background: var(--bg); z-index: 50; }
+#gate form { display: grid; gap: 12px; width: 320px; }
+#gate h1 { margin: 0; font-size: 20px; }
+#gate input { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; font-size: 15px; }
+#gate .err { color: var(--bad); font-size: 13px; min-height: 18px; }
+#side, #main { visibility: hidden; }
+body.open #side, body.open #main { visibility: visible; }
+.upd { color: var(--dim); font-size: 11px; padding: 0 6px; }
+</style>
+</head>
+<body>
+<div id="gate"><form><h1>Genjutsu — эвал</h1><input type="password" placeholder="Пароль" autocomplete="current-password" autofocus><button class="btn acc" type="submit">Открыть</button><div class="err"></div></form></div>
+<aside id="side">
+  <div class="brand">
+    <div class="b1">Genjutsu — эвал</div>
+    <div class="b2">боевой · MAGI-2 · Lite (Kling)</div>
+  </div>
+  <nav id="views">
+    <button data-view="compare">Сравнение</button>
+    <button data-view="summary">Итог</button>
+  </nav>
+  <div id="blocks"></div>
+  <div class="legend">
+    <div><kbd>пробел</kbd> пуск · <kbd>R</kbd> сначала · <kbd>,</kbd> <kbd>.</kbd> кадр</div>
+    <div><kbd>←</kbd> <kbd>→</kbd> кейс · <kbd>M</kbd> режим · <kbd>D</kbd> дубль</div>
+    <div><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> победитель · <kbd>0</kbd> ничья · <kbd>X</kbd> все плохо</div>
+    <div><kbd>Q</kbd> <kbd>W</kbd> <kbd>E</kbd> <kbd>T</kbd> звук: вход и столбцы</div>
+    <div><kbd>B</kbd> вслепую · <kbd>I</kbd> задание</div>
+    <div>двойной клик или <kbd>F</kbd> — на весь экран, там <kbd>Q</kbd> <kbd>W</kbd> <kbd>E</kbd> <kbd>T</kbd> переключают ролик</div>
+  </div>
+</aside>
+<main id="main"></main>
+<script>
+(function () {
+  "use strict";
+  var SALT = "8AAPMC27wmFHDRaEHhLbYA==", ITER = 600000, KN = "magi2-k-9502b677";
+  var $ = function (s) { return document.querySelector(s); };
+  function b64(s) { var b = atob(s), a = new Uint8Array(b.length); for (var i = 0; i < b.length; i++) a[i] = b.charCodeAt(i); return a; }
+  function toB64(a) { var s = ""; for (var i = 0; i < a.length; i++) s += String.fromCharCode(a[i]); return btoa(s); }
+  async function derive(pw) {
+    var base = await crypto.subtle.importKey("raw", new TextEncoder().encode(pw), "PBKDF2", false, ["deriveBits"]);
+    return new Uint8Array(await crypto.subtle.deriveBits({ name: "PBKDF2", salt: b64(SALT), iterations: ITER, hash: "SHA-256" }, base, 256));
+  }
+  async function open(raw) {
+    var key = await crypto.subtle.importKey("raw", raw, "AES-GCM", false, ["decrypt"]);
+    var r = await fetch("g/page.bin?" + Date.now()); if (!r.ok) throw new Error("fetch");
+    var b = new Uint8Array(await r.arrayBuffer());
+    var data = JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({ name: "AES-GCM", iv: b.slice(0, 12) }, key, b.slice(12))));
+    try { localStorage.setItem(KN, toB64(raw)); } catch (e) {}
+    window.GJ_PUB = { data: data };
+    $("#gate").style.display = "none"; document.body.classList.add("open");
+    __startApp();
+  }
+  $("#gate form").addEventListener("submit", async function (e) {
+    e.preventDefault(); var err = $("#gate .err"); err.textContent = "Проверяю…";
+    try { await open(await derive($("#gate input").value)); } catch (x) { err.textContent = "Неверный пароль"; }
+  });
+  (async function () { try { var s = localStorage.getItem(KN); if (s) await open(b64(s)); } catch (e) { try { localStorage.removeItem(KN); } catch (_) {} } })();
+})();
+function __startApp() {
+/* Эвал Genjutsu: сравнение трёх систем (боевой / MAGI-2 / Lite) в двух режимах, по два дубля. */
+const SYS = {
+  prod: { name: 'Genjutsu', short: 'Genjutsu', color: 'var(--prod)' },
+  magi: { name: 'Genjutsu (MAGI-2)', short: 'MAGI-2', color: 'var(--magi)' },
+  lite: { name: 'Genjutsu Lite (Kling)', short: 'Lite', color: 'var(--lite)' },
+};
+const MODE = { swap: 'Objects swap', motion: 'Motion transfer' };
+// PUB — версия на GitHub: данные расшифрованы на странице, видео идут ссылками на хранилище, отметки живут в браузере
+const PUB = window.GJ_PUB || null;
+const U = p => (/^https?:/.test(p) ? p : '/media/' + p);
+const LS = k => { try { return JSON.parse(localStorage.getItem('gjev_' + k)); } catch { return null; } };
+const S = {
+  data: null, view: 'compare', block: null, caseId: null,
+  mode: LS('mode') || 'swap', take: LS('take') || '1', blind: !!LS('blind'), team: !!LS('team'), auto: LS('auto') !== false,
+  onlyOpen: false, info: !!LS('info'), focus: null, snd: 'input', playing: false, rate: 1, t: 0,
+};
+const keep = k => localStorage.setItem('gjev_' + k, JSON.stringify(S[k]));
+const $ = (s, r = document) => r.querySelector(s);
+const el = (tag, attrs = {}, ...kids) => {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v == null || v === false) continue;
+    if (k === 'class') e.className = v;
+    else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+    else if (k === 'text') e.textContent = v;
+    else e.setAttribute(k, v === true ? '' : v);
+  }
+  for (const k of kids.flat(3)) if (k != null && k !== false) e.append(k.nodeType ? k : document.createTextNode(k));
+  return e;
+};
+const mark = k => S.data.marks[k]?.v;
+async function setMark(key, value) {
+  if (PUB) {
+    if (value == null) delete S.data.marks[key]; else S.data.marks[key] = { v: value, at: new Date().toISOString() };
+    localStorage.setItem('gjev_marks', JSON.stringify(S.data.marks));
+    return;
+  }
+  const r = await fetch('/api/mark', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key, value }) });
+  S.data.marks = await r.json();
+}
+const casesOf = b => S.data.cases.filter(c => c.block === b);
+const refById = id => (S.data.refs || []).find(r => r.id === id);
+const fmt = t => { t = Math.max(0, t || 0); return `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}.${Math.floor((t % 1) * 10)}`; };
+const judged = (c, m) => !!mark(`win|${c.id}|${m}`);
+const judgedAll = c => S.data.modes.every(m => judged(c, m));
+const cells = (c, m) => S.data.systems.flatMap(sy => S.data.takes.map(tk => c.results[`${sy}_${m}_${tk}`]));
+const ready = c => S.data.modes.flatMap(m => cells(c, m)).filter(r => r?.src).length;
+const failed = c => S.data.modes.flatMap(m => cells(c, m)).filter(r => r?.fail).length;
+const total = () => S.data.systems.length * S.data.modes.length * S.data.takes.length;
+// порядок столбцов: обычный или перемешанный (вслепую), устойчивый для кейса и режима
+function order(c, m) {
+  const a = [...S.data.systems];
+  if (!S.blind) return a;
+  let h = 2166136261;
+  for (const ch of c.id + m) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
+  for (let i = a.length - 1; i > 0; i--) { h = Math.imul(h ^ (h >>> 13), 1274126177); const j = Math.abs(h) % (i + 1); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+const hidden = (c, m) => S.blind && !judged(c, m);
+
+function saveState() { history.replaceState(null, '', '#' + new URLSearchParams({ v: S.view, b: S.block || '', c: S.caseId || '' })); }
+function loadState() {
+  const p = new URLSearchParams(location.hash.slice(1));
+  if (p.get('v') && p.get('v') !== 'inputs') S.view = p.get('v');
+  if (p.get('b')) S.block = p.get('b');
+  if (p.get('c')) S.caseId = p.get('c');
+}
+async function load() {
+  if (PUB) { S.data = PUB.data; try { S.data.marks = JSON.parse(localStorage.getItem('gjev_marks') || '{}'); } catch { S.data.marks = {}; } }
+  else S.data = await (await fetch('/api/data')).json();
+  if (!S.block || !S.data.blocks.some(b => b.id === S.block)) S.block = (S.data.blocks.find(b => casesOf(b.id).length) || S.data.blocks[0])?.id;
+}
+
+/* ---------- боковая панель ---------- */
+function renderSide() {
+  document.querySelectorAll('#views button').forEach(b => {
+    b.classList.toggle('on', b.dataset.view === S.view);
+    b.onclick = () => { S.view = b.dataset.view; render(); };
+  });
+  $('#blocks').replaceChildren(...S.data.blocks.map((b, i) => {
+    const cs = casesOf(b.id);
+    const done = cs.reduce((a, c) => a + ready(c), 0), all = cs.length * total();
+    const j = cs.filter(judgedAll).length;
+    return el('button', { class: 'blk' + (b.id === S.block ? ' on' : '') + (cs.length ? '' : ' empty'), onclick: () => { S.block = b.id; S.caseId = null; S.t = 0; if (S.view !== 'compare') S.view = 'compare'; render(); } },
+      el('span', { class: 'n', text: String(i + 1) }),
+      el('span', { class: 't' }, b.title, el('span', { class: 's', text: cs.length ? `${cs.length} кейсов · готово ${done}/${all}` : 'входы собираются' }),
+        el('span', { class: 'pb' }, el('i', { style: `width:${all ? 100 * done / all : 0}%` }))),
+      el('span', { class: 'c', title: 'оценено кейсов' }, el('b', { text: j }), `/${cs.length}`));
+  }));
+}
+
+function stamp() {
+  const all = S.data.cases, t = total();
+  const done = all.reduce((a, c) => a + ready(c), 0), fl = all.reduce((a, c) => a + failed(c), 0);
+  $('.brand .b2').textContent = `готово ${done} из ${all.length * t} · отказов ${fl} · обновлено ${new Date().toLocaleTimeString('ru-RU')}`;
+}
+/* ---------- сравнение ---------- */
+let vids = [];
+const master = () => vids.find(v => v.dataset.key === 'input') || vids[0];
+function visibleCases() {
+  const cs = casesOf(S.block);
+  return S.onlyOpen ? cs.filter(c => !judgedAll(c) || c.id === S.caseId) : cs;
+}
+function seg(items, cur, on, cls = '') {
+  return el('div', { class: 'seg ' + cls }, items.map(([k, t, tip]) => el('button', { class: k === cur ? 'on' : '', title: tip, text: t, onclick: () => on(k) })));
+}
+function renderCompare() {
+  const b = S.data.blocks.find(x => x.id === S.block);
+  const all = casesOf(S.block), cs = visibleCases();
+  const main = $('#main');
+  vids = [];
+  if (!all.length) { main.replaceChildren(el('h1', { text: b.title }), el('div', { class: 'empty', text: b.wait || 'Входы для этого направления ещё собираются — ролики появятся здесь сами.' })); return; }
+  if (!cs.some(c => c.id === S.caseId)) S.caseId = (cs.find(c => !judgedAll(c)) || cs[0]).id;
+  const c = cs.find(x => x.id === S.caseId), idx = cs.indexOf(c), m = S.mode;
+  const takes = S.take === 'both' ? S.data.takes : [S.take];
+  const ord = order(c, m), hide = hidden(c, m);
+  const land = (c.w || 9) > (c.h || 16) * 1.05;
+  const mk = (src, key) => { const v = el('video', { src, preload: 'auto', playsinline: true, muted: true }); v.dataset.key = key; v.playbackRate = S.rate; vids.push(v); return v; };
+  const tile = (key, label, r, extra) => {
+    if (S.focus && S.focus !== key && key !== 'input') return null;
+    if (!r || r.state) return el('div', { class: 'tile none' }, el('span', { class: 'lab' }, label), el('div', { class: 'wait' }, el('i', { class: 'spin' }), r?.state || 'в очереди'));
+    if (r.fail) return el('div', { class: 'tile none fail' }, el('span', { class: 'lab' }, label), el('div', { class: 'wait' }, 'отказ', el('small', { text: r.fail })));
+    const sk = `star|${c.id}|${key}`;
+    const t = el('div', { class: 'tile' + (S.snd === key ? ' snd' : ''), onclick: () => sound(key), ondblclick: () => enterFs(key) },
+      mk(r.src + (r.v ? `?v=${r.v}` : ''), key), el('span', { class: 'lab' }, label), el('span', { class: 'spk', text: '🔊' }),
+      key !== 'input' && key !== 'team' ? el('button', { class: 'star' + (mark(sk) ? ' on' : ''), text: '★', title: 'отметить ролик звёздочкой', onclick: async e => { e.stopPropagation(); await setMark(sk, mark(sk) ? null : 1); e.target.classList.toggle('on'); } }) : null, extra);
+    t.dataset.key = key; if (r.silent) t.dataset.silent = '1'; return t;
+  };
+  const sysLabel = (sy, i, tk) => [el('i', { class: 'dot', style: `background:${hide ? 'var(--dim)' : SYS[sy].color}` }), hide ? `Вариант ${'ABC'[i]}` : SYS[sy].short, S.take === 'both' ? el('em', { text: ` · дубль ${tk}` }) : null,
+    el('kbd', { text: String(i + 1) })];
+  const inTile = tile('input', ['Вход'], { src: U(c.input) });
+  const teamTile = S.team && c.team?.file ? tile('team', ['Ролик команды'], { src: U(c.team.file) }) : null;
+  const sysTiles = takes.map(tk => ord.map((sy, i) => tile(`${sy}_${m}_${tk}`, sysLabel(sy, i, tk), c.results[`${sy}_${m}_${tk}`])));
+  const nTop = 1 + (teamTile ? 1 : 0);
+  let stage;
+  if (S.focus) stage = el('div', { class: 'stage focus ' + (land ? 'land' : 'port') }, inTile, sysTiles);
+  else if (S.take === 'both') stage = el('div', { class: 'stage both ' + (land ? 'land' : 'port') },
+    el('div', { class: 'srcrow' }, inTile, teamTile), el('div', { class: 'grid3' }, sysTiles));
+  else stage = el('div', { class: 'stage one ' + (land ? 'land' : 'port'), style: `--n:${nTop + 3}` }, inTile, teamTile, sysTiles);
+
+  const wk = `win|${c.id}|${m}`, w = mark(wk);
+  const pick = async k => { await setMark(wk, w === k ? null : k); if (w !== k && S.auto) advance(); else rerender(); };
+  renderCompare.pick = k => pick(k);
+  renderCompare.ord = ord;
+  const seek = el('input', { type: 'range', min: 0, max: 1000, value: 0, class: 'seek', oninput: e => { const d = master()?.duration || 0; setTime(d * e.target.value / 1000); } });
+  const tm = el('span', { class: 'tm', text: '0:00.0' });
+  const playBtn = el('button', { class: 'btn acc play', text: '▶', title: 'пробел', onclick: toggle });
+  renderCompare.playBtn = playBtn;
+  const refs = (c.ref || []).map(refById).filter(Boolean);
+  const fails = S.data.modes.flatMap(mm => S.data.systems.flatMap(sy => S.data.takes.map(tk => [mm, sy, tk, c.results[`${sy}_${mm}_${tk}`]]))).filter(x => x[3]?.fail);
+
+  main.replaceChildren(...[
+    el('div', { class: 'top' },
+      el('div', { class: 'row' },
+        el('button', { class: 'btn nav', text: '←', title: 'предыдущий кейс', onclick: () => stepCase(-1) }),
+        el('button', { class: 'btn nav', text: '→', title: 'следующий кейс', onclick: () => stepCase(1) }),
+        el('div', { class: 'ttl' }, el('b', { text: c.id }), el('span', { class: 'cnt', text: `${idx + 1} / ${cs.length}` }), el('span', { class: 'nm', title: c.title || '', text: c.title || '' })),
+        el('div', { class: 'grow' }),
+        seg(S.data.modes.map(k => [k, MODE[k] + (judged(c, k) ? ' ✓' : ''), 'клавиша M']), m, k => { S.mode = k; keep('mode'); rerender(); }),
+        seg([['1', 'Дубль 1'], ['2', 'Дубль 2'], ['both', 'Оба']].map(x => [...x, 'клавиша D']), S.take, k => { S.take = k; keep('take'); S.focus = null; rerender(); }),
+        el('button', { class: 'btn tg' + (S.blind ? ' on' : ''), text: 'Вслепую', title: 'спрятать названия и перемешать столбцы (B)', onclick: () => { S.blind = !S.blind; keep('blind'); rerender(); } }),
+        c.team?.file ? el('button', { class: 'btn tg' + (S.team ? ' on' : ''), text: 'Ролик команды', onclick: () => { S.team = !S.team; keep('team'); rerender(); } }) : null,
+        el('button', { class: 'btn tg' + (S.info ? ' on' : ''), text: 'Задание', title: 'референсы и текст задания (I)', onclick: () => { S.info = !S.info; keep('info'); rerender(); } })),
+      el('div', { class: 'row' }, playBtn,
+        el('button', { class: 'btn', text: '⏮', title: 'сначала (R)', onclick: () => setTime(0) }),
+        el('button', { class: 'btn', text: '‹', title: 'кадр назад (,)', onclick: () => stepFrame(-1) }),
+        el('button', { class: 'btn', text: '›', title: 'кадр вперёд (.)', onclick: () => stepFrame(1) }),
+        seg([[0.25, '¼×'], [0.5, '½×'], [1, '1×']], S.rate, r => { S.rate = r; vids.forEach(v => { v.playbackRate = r; }); rerender(); }, 'sm'),
+        seek, tm)),
+    S.info ? el('div', { class: 'info' },
+      el('div', { class: 'refrow' }, refs.map(r => el('figure', {}, el('img', { src: U(r.file), loading: 'lazy' }), el('figcaption', { text: r.label || r.id })))),
+      el('div', { class: 'pr' }, el('b', { text: MODE[m] + ': ' }), (m === 'swap' ? c.prompt_swap : c.prompt_motion) || 'без текста задания',
+        el('div', { class: 'meta' }, [c.subtype, c.dur ? `${c.dur} с` : null, c.w ? `${c.w}×${c.h}` : null, c.audio === false ? 'без звука' : null].filter(Boolean).join(' · '),
+          c.source?.url ? [' · ', el('a', { href: c.source.url, target: '_blank', rel: 'noreferrer', text: c.source.platform || 'источник' })] : null))) : null,
+    stage,
+    el('div', { class: 'verdict' },
+      el('span', { class: 'q', text: `Кто лучше в «${MODE[m]}»?` }),
+      ord.map((sy, i) => el('button', { class: 'btn v' + (w === sy ? ' on' : ''), style: `--c:${hide ? 'var(--dim)' : SYS[sy].color}`, onclick: () => pick(sy) }, el('kbd', { text: String(i + 1) }), hide ? `Вариант ${'ABC'[i]}` : SYS[sy].name)),
+      el('button', { class: 'btn v' + (w === 'tie' ? ' on' : ''), onclick: () => pick('tie') }, el('kbd', { text: '0' }), 'Ничья'),
+      el('button', { class: 'btn v' + (w === 'none' ? ' on' : ''), onclick: () => pick('none') }, el('kbd', { text: 'X' }), 'Все плохо'),
+      el('label', { class: 'auto' }, el('input', { type: 'checkbox', checked: S.auto, onchange: e => { S.auto = e.target.checked; keep('auto'); } }), 'после оценки — дальше'),
+      el('input', { class: 'note', placeholder: 'заметка по кейсу', value: mark(`note|${c.id}`) || '', onchange: e => setMark(`note|${c.id}`, e.target.value || null) })),
+    fails.length ? el('div', { class: 'fails' }, 'Отказы: ', fails.map(([mm, sy, tk, r]) => el('span', { text: `${SYS[sy].short} · ${MODE[mm]} · дубль ${tk}: ${r.fail}` }))) : null,
+    el('div', { class: 'chipbar' },
+      el('button', { class: 'btn tg sm' + (S.onlyOpen ? ' on' : ''), text: 'только неоценённые', onclick: () => { S.onlyOpen = !S.onlyOpen; rerender(); } }),
+      el('div', { class: 'chips' }, cs.map(x => el('button', { class: 'chip' + (x.id === c.id ? ' on' : '') + (judgedAll(x) ? ' done' : S.data.modes.some(k => judged(x, k)) ? ' half' : '') + (failed(x) ? ' hasfail' : ''),
+        title: `${x.title || ''}\nготово ${ready(x)}/${total()}${failed(x) ? `, отказов ${failed(x)}` : ''}`, onclick: () => { S.caseId = x.id; S.t = 0; S.focus = null; rerender(); } }, x.id, el('i', { style: `width:${100 * ready(x) / total()}%` }))))),
+  ].filter(Boolean));
+
+  const mst = master();
+  if (mst) {
+    const t0 = S.t;
+    vids.forEach(v => v.addEventListener('loadedmetadata', () => { if (t0 && t0 < v.duration) v.currentTime = t0; }, { once: true }));
+    mst.addEventListener('timeupdate', () => {
+      const t = mst.currentTime; S.t = t;
+      tm.textContent = `${fmt(t)} / ${fmt(mst.duration)}`;
+      if (mst.duration) seek.value = Math.round(1000 * t / mst.duration);
+      vids.forEach(v => { if (v !== mst && v.readyState > 1 && Math.abs(v.currentTime - t) > 0.12 && t < (v.duration || 1e9) - 0.1) v.currentTime = t; });
+    });
+    mst.addEventListener('ended', () => { vids.forEach(v => { v.pause(); v.currentTime = 0; }); if (S.playing) vids.forEach(v => v.play().catch(() => {})); });
+  }
+  if (!vids.some(v => v.dataset.key === S.snd)) S.snd = 'input';
+  sound(S.snd);
+  if (S.playing) { vids.forEach(v => v.play().catch(() => {})); playBtn.textContent = '⏸'; }
+}
+function rerender() { render(); }
+// Двойной клик — ролик на весь экран; Q/W/E/T в этом режиме мгновенно переключают, чей ролик на экране (вход и три столбца), время общее
+function enterFs(key) {
+  const st = $('.stage'); if (!st) return;
+  const t = [...st.querySelectorAll('.tile')].find(x => x.dataset.key === key); if (!t) return;
+  st.querySelectorAll('.tile').forEach(x => x.classList.toggle('fsOn', x === t));
+  sound(key);
+  if (!document.fullscreenElement) { const r = (st.requestFullscreen || st.webkitRequestFullscreen).call(st); if (r && r.catch) r.catch(() => {}); }
+}
+function setTime(t) { S.t = t; vids.forEach(v => { v.currentTime = Math.min(t, Math.max(0, (v.duration || t) - 0.03)); }); }
+function stepFrame(d) { if (S.playing) toggle(); setTime(Math.max(0, (master()?.currentTime || 0) + d / 24)); }
+function toggle() {
+  S.playing = !S.playing;
+  vids.forEach(v => (S.playing ? v.play().catch(() => {}) : v.pause()));
+  if (renderCompare.playBtn) renderCompare.playBtn.textContent = S.playing ? '⏸' : '▶';
+}
+function sound(key) {
+  S.snd = key;
+  // ролик со входа без звука сам молчит — вместо него звучит дорожка входа (она та же)
+  const silent = [...document.querySelectorAll('.tile')].some(t => t.dataset.key === key && t.dataset.silent);
+  vids.forEach(v => { v.muted = v.dataset.key !== (silent ? 'input' : key); });
+  document.querySelectorAll('.tile').forEach(t => t.classList.toggle('snd', t.dataset.key === key));
+}
+const pickTile = key => (document.fullscreenElement ? enterFs(key) : sound(key));
+function stepCase(d) {
+  const cs = visibleCases(), i = cs.findIndex(c => c.id === S.caseId);
+  if (i < 0) return;
+  S.caseId = cs[Math.max(0, Math.min(cs.length - 1, i + d))].id; S.t = 0; S.focus = null; render();
+}
+// после оценки: сначала второй режим этого кейса, потом следующий неоценённый кейс
+function advance() {
+  const c = S.data.cases.find(x => x.id === S.caseId);
+  const other = S.data.modes.find(k => k !== S.mode && !judged(c, k));
+  if (other) { S.mode = other; keep('mode'); S.focus = null; return render(); }
+  const cs = casesOf(S.block), i = cs.findIndex(x => x.id === S.caseId);
+  const next = [...cs.slice(i + 1), ...cs.slice(0, i)].find(x => !judgedAll(x));
+  if (next) { S.caseId = next.id; S.t = 0; S.focus = null; const mm = S.data.modes.find(k => !judged(next, k)); if (mm) { S.mode = mm; keep('mode'); } }
+  render();
+}
+
+/* ---------- итог ---------- */
+function renderSummary() {
+  const D = S.data, rows = [], prog = [];
+  for (const b of D.blocks) {
+    const cs = casesOf(b.id);
+    if (!cs.length) continue;
+    for (const m of D.modes) {
+      const w = { prod: 0, magi: 0, lite: 0, tie: 0, none: 0 };
+      let open = 0;
+      cs.forEach(c => { const k = mark(`win|${c.id}|${m}`); if (k) w[k]++; else open++; });
+      rows.push({ b, m, w, open });
+    }
+    const p = { b, n: cs.length };
+    for (const sy of D.systems) {
+      let done = 0, fail = 0;
+      cs.forEach(c => D.modes.forEach(m => D.takes.forEach(t => { const r = c.results[`${sy}_${m}_${t}`]; if (r?.src) done++; else if (r?.fail) fail++; })));
+      p[sy] = { done, fail, total: cs.length * D.modes.length * D.takes.length };
+    }
+    prog.push(p);
+  }
+  const best = w => { const mx = Math.max(w.prod, w.magi, w.lite); return mx > 0 ? D.systems.filter(s => w[s] === mx) : []; };
+  const tot = m => rows.filter(r => r.m === m).reduce((a, r) => { for (const k in a) a[k] += r.w[k]; return a; }, { prod: 0, magi: 0, lite: 0, tie: 0, none: 0 });
+  const stars = Object.keys(D.marks).filter(k => k.startsWith('star|')).map(k => k.split('|'));
+  const notes = Object.keys(D.marks).filter(k => k.startsWith('note|')).map(k => [k.split('|')[1], mark(k)]);
+  const go = id => { const c = D.cases.find(x => x.id === id); if (!c) return; S.block = c.block; S.caseId = id; S.view = 'compare'; render(); };
+  $('#main').replaceChildren(...[
+    el('h1', { text: 'Итог' }),
+    el('div', { class: 'sub', text: 'Победы — по твоим отметкам «Кто лучше» в каждом кейсе и режиме. Отказы модерации считаются отдельно и в победы не входят.' }),
+    el('h3', { text: 'Победы по направлениям' }),
+    el('table', {}, el('thead', {}, el('tr', {}, ['Направление', 'Режим', ...D.systems.map(s => SYS[s].name), 'Ничья', 'Все плохо', 'Не оценено'].map(t => el('th', { text: t })))),
+      el('tbody', {}, rows.map(r => { const bs = best(r.w); return el('tr', {}, el('td', { text: r.b.title }), el('td', { text: MODE[r.m] }),
+        D.systems.map(s => el('td', { class: bs.includes(s) ? 'best' : '', text: r.w[s] })), el('td', { text: r.w.tie }), el('td', { text: r.w.none }), el('td', { text: r.open })); }),
+        D.modes.map(m => { const t = tot(m), bs = best(t); return el('tr', { class: 'sum' }, el('td', { text: 'Всего' }), el('td', { text: MODE[m] }),
+          D.systems.map(s => el('td', { class: bs.includes(s) ? 'best' : '', text: t[s] })), el('td', { text: t.tie }), el('td', { text: t.none }), el('td', { text: '' })); }))),
+    el('h3', { text: 'Ход генераций: готово / отказов / всего' }),
+    el('table', {}, el('thead', {}, el('tr', {}, ['Направление', 'Кейсов', ...D.systems.map(s => SYS[s].name)].map(t => el('th', { text: t })))),
+      el('tbody', {}, prog.map(p => el('tr', {}, el('td', { text: p.b.title }), el('td', { text: p.n }),
+        D.systems.map(s => el('td', { text: `${p[s].done} / ${p[s].fail} / ${p[s].total}` })))))),
+    stars.length ? [el('h3', { text: 'Отмеченные звёздочкой' }), el('div', { class: 'chips' }, stars.map(([, id, key]) => { const [sy, m, tk] = key.split('_'); return el('button', { class: 'chip', text: `${id} · ${SYS[sy]?.short || sy} · ${MODE[m] || m} · дубль ${tk}`, onclick: () => go(id) }); }))] : null,
+    notes.length ? [el('h3', { text: 'Заметки' }), el('div', { class: 'notes' }, notes.map(([id, t]) => el('div', { onclick: () => go(id) }, el('b', { text: id + ' ' }), t)))] : null,
+  ].flat().filter(Boolean));
+}
+
+function render() {
+  renderSide();
+  stamp();
+  (S.view === 'summary' ? renderSummary : renderCompare)();
+  saveState();
+}
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' && e.target.type !== 'range' && e.target.type !== 'checkbox') return;
+  if (e.metaKey || e.ctrlKey || S.view !== 'compare') return;
+  const k = e.key.toLowerCase(), ord = renderCompare.ord || [];
+  const acts = {
+    ' ': toggle, arrowright: () => stepCase(1), arrowleft: () => stepCase(-1),
+    m: () => { S.mode = S.mode === 'swap' ? 'motion' : 'swap'; keep('mode'); render(); }, 'ь': null,
+    d: () => { S.take = { 1: '2', 2: 'both', both: '1' }[S.take]; keep('take'); S.focus = null; render(); },
+    b: () => { S.blind = !S.blind; keep('blind'); render(); }, i: () => { S.info = !S.info; keep('info'); render(); },
+    r: () => setTime(0), ',': () => stepFrame(-1), '.': () => stepFrame(1), escape: () => { S.focus = null; render(); },
+    1: () => ord[0] && renderCompare.pick(ord[0]), 2: () => ord[1] && renderCompare.pick(ord[1]), 3: () => ord[2] && renderCompare.pick(ord[2]),
+    0: () => renderCompare.pick('tie'), x: () => renderCompare.pick('none'),
+    q: () => pickTile('input'), w: () => ord[0] && pickTile(`${ord[0]}_${S.mode}_${S.take === 'both' ? '1' : S.take}`),
+    e: () => ord[1] && pickTile(`${ord[1]}_${S.mode}_${S.take === 'both' ? '1' : S.take}`), t: () => ord[2] && pickTile(`${ord[2]}_${S.mode}_${S.take === 'both' ? '1' : S.take}`),
+    f: () => (document.fullscreenElement ? document.exitFullscreen() : enterFs(S.snd)),
+  };
+  const ru = { 'а': 'f', 'ь': 'm', 'в': 'd', 'и': 'b', 'ш': 'i', 'к': 'r', 'б': ',', 'ю': '.', 'ч': 'x', 'й': 'q', 'ц': 'w', 'у': 'e', 'е': 't' };
+  const f = acts[ru[k] || k];
+  if (f) { e.preventDefault(); f(); }
+});
+window.addEventListener('hashchange', () => { const b = `${S.view}|${S.block}|${S.caseId}`; loadState(); if (S.data && b !== `${S.view}|${S.block}|${S.caseId}`) render(); });
+(async () => { loadState(); await load(); render(); })();
+// новые ролики подтягиваются сами; пока идёт воспроизведение или набирается заметка — экран не трогаем
+setInterval(async () => {
+  if (PUB || S.playing || document.fullscreenElement || document.activeElement?.classList.contains('note')) return;
+  const before = JSON.stringify(S.data.cases.map(c => [c.id, Object.keys(c.results).map(k => k + (c.results[k].src ? 1 : c.results[k].fail ? 2 : 0))]));
+  await load();
+  renderSide(); stamp();
+  const after = JSON.stringify(S.data.cases.map(c => [c.id, Object.keys(c.results).map(k => k + (c.results[k].src ? 1 : c.results[k].fail ? 2 : 0))]));
+  if (before !== after) render();
+}, 8000);
+
+}
+</script>
+</body>
+</html>
