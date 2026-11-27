@@ -164,6 +164,19 @@ body.buffering .bufmsg { display: inline; }
 .chip.new { border-color: var(--acc); }
 .chip.new::before { content: '●'; color: var(--acc); font-size: 8px; margin-right: 4px; vertical-align: middle; }
 
+/* оценка Gemini */
+.tile .lab em.q { color: #cfd3dd; font-weight: 600; }
+.tile .lab em.q.crit { color: var(--bad); }
+.gem { margin-top: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: grid; gap: 6px; font-size: 13px; }
+.gem .gh { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.gem .gh span { color: var(--dim); }
+.gem .gr { display: grid; grid-template-columns: 170px 44px 1fr; gap: 10px; align-items: baseline; }
+.gem .gs { display: flex; gap: 6px; align-items: center; font-weight: 600; }
+.gem .gq { font: 13px ui-monospace, monospace; }
+.gem .ge { color: var(--dim); }
+.gem .gr.crit .gq, .gem .gr.crit .ge { color: var(--bad); }
+.gem .gn { color: var(--dim); font-size: 12px; border-top: 1px solid var(--line); padding-top: 6px; }
+
 #gate { position: fixed; inset: 0; display: grid; place-items: center; background: var(--bg); z-index: 50; }
 #gate form { display: grid; gap: 12px; width: 320px; }
 #gate h1 { margin: 0; font-size: 20px; }
@@ -330,6 +343,7 @@ function visibleCases() {
   const cs = casesOf(S.block);
   return S.onlyOpen ? cs.filter(c => !judgedAll(c) || c.id === S.caseId) : cs;
 }
+const jq = (c, m, sy, tk) => c.judge?.[m]?.systems?.[sy]?.[tk];
 function seg(items, cur, on, cls = '') {
   return el('div', { class: 'seg ' + cls }, items.map(([k, t, tip, off]) => el('button', { class: (k === cur ? 'on' : '') + (off ? ' off' : ''), title: off ? 'ещё не готово' : tip, text: t, onclick: () => { if (!off) on(k); } })));
 }
@@ -363,6 +377,7 @@ function renderCompare() {
     t.dataset.key = key; if (r.silent) t.dataset.silent = '1'; return t;
   };
   const sysLabel = (sy, i, tk) => [el('i', { class: 'dot', style: `background:${hide ? 'var(--dim)' : SYS[sy].color}` }), hide ? `Вариант ${'ABC'[i]}` : SYS[sy].short, S.take === 'both' ? el('em', { text: ` · дубль ${tk}` }) : null,
+    !hide && jq(c, m, sy, tk) ? el('em', { class: 'q' + (jq(c, m, sy, tk).critical ? ' crit' : ''), title: jq(c, m, sy, tk).evidence || '', text: ` · Gemini ${jq(c, m, sy, tk).Q ?? '—'}${jq(c, m, sy, tk).critical ? ' ⚠' : ''}` }) : null,
     !hide && sy === 'magi' && c.results[`magi_${m}_${tk}`]?.via ? el('em', { text: ` · ${c.results[`magi_${m}_${tk}`].via}` }) : null,
     el('kbd', { text: String(i + 1) })];
   const inTile = tile('input', ['Вход'], { src: U(c.input) });
@@ -418,6 +433,12 @@ function renderCompare() {
       el('button', { class: 'btn v' + (w === 'none' ? ' on' : ''), onclick: () => pick('none') }, el('kbd', { text: 'X' }), 'Все плохо'),
       el('label', { class: 'auto' }, el('input', { type: 'checkbox', checked: S.auto, onchange: e => { S.auto = e.target.checked; keep('auto'); } }), 'после оценки — дальше'),
       el('input', { class: 'note', placeholder: 'заметка по кейсу', value: mark(`note|${c.id}`) || '', onchange: e => setMark(`note|${c.id}`, e.target.value || null) })),
+    !hide && c.judge?.[m] ? el('div', { class: 'gem' },
+      el('div', { class: 'gh' }, el('b', { text: 'Оценка Gemini' }), el('span', { text: gemVerdict(c, m) })),
+      ord.flatMap(sy => S.data.takes.map(tk => { const t = jq(c, m, sy, tk); return t ? el('div', { class: 'gr' + (t.critical ? ' crit' : '') },
+        el('span', { class: 'gs' }, el('i', { class: 'dot', style: `background:${SYS[sy].color}` }), `${SYS[sy].short} · дубль ${tk}`),
+        el('span', { class: 'gq', text: t.Q ?? '—' }), el('span', { class: 'ge', text: (t.critical ? 'Критично. ' : '') + (t.evidence || '') })) : null; })),
+      c.judge[m].not_checked ? el('div', { class: 'gn', text: 'Не проверено: ' + c.judge[m].not_checked }) : null) : null,
     fails.length ? el('div', { class: 'fails' }, 'Отказы: ', fails.map(([mm, sy, tk, r]) => el('span', { text: `${SYS[sy].short} · ${MODE[mm]} · дубль ${tk}: ${r.fail}` }))) : null,
     el('div', { class: 'chipbar' },
       el('button', { class: 'btn tg sm' + (S.onlyOpen ? ' on' : ''), text: 'только неоценённые', onclick: () => { S.onlyOpen = !S.onlyOpen; rerender(); } }),
@@ -465,6 +486,12 @@ function syncTick() {
   if (S.buf) L.forEach(v => v.pause());
 }
 setInterval(syncTick, 80);
+function gemVerdict(c, m) {
+  const j = c.judge?.[m]; if (!j) return '';
+  const w = j.W?.['magi>prod'];
+  const who = w == null ? 'нет пары для сравнения' : w > 0.5 ? 'лучше MAGI-2' : w < 0.5 ? 'лучше Genjutsu' : 'ничья';
+  return `${who}${w == null ? '' : ` (${Math.round(w * 100)}% в пользу MAGI-2 по четырём парам дублей)`}${j.better?.why ? ' — ' + j.better.why : ''}`;
+}
 function rerender() { render(); }
 // Двойной клик — ролик на весь экран; Q/W/E/T в этом режиме мгновенно переключают, чей ролик на экране (вход и три столбца), время общее
 function enterFs(key) {
@@ -539,6 +566,19 @@ function renderSummary() {
         D.systems.map(s => el('td', { class: bs.includes(s) ? 'best' : '', text: r.w[s] })), el('td', { text: r.w.tie }), el('td', { text: r.w.none }), el('td', { text: r.open })); }),
         D.modes.map(m => { const t = tot(m), bs = best(t); return el('tr', { class: 'sum' }, el('td', { text: 'Всего' }), el('td', { text: MODE[m] }),
           D.systems.map(s => el('td', { class: bs.includes(s) ? 'best' : '', text: t[s] })), el('td', { text: t.tie }), el('td', { text: t.none }), el('td', { text: '' })); }))),
+    ...(D.judge?.table?.length ? [
+      el('h3', { text: 'Оценка Gemini: MAGI-2 против Genjutsu' }),
+      el('div', { class: 'sub', text: `Слепое сравнение (${D.judge.model}): шкала 0–4, Q — средний балл по общим и специальным критериям направления. Победа в паре дублей — при разнице Q больше ${D.judge.threshold} или если у соперника критическая ошибка. «Пригодно» — без критических ошибок и Q не ниже 3.` }),
+      el('table', {}, el('thead', {}, el('tr', {}, ['Направление', 'Режим', 'Кейсов', 'Лучше MAGI-2', 'Ничья', 'Лучше Genjutsu', 'Q Genjutsu', 'Q MAGI-2', 'Критич. Genjutsu', 'Критич. MAGI-2', 'Пригодно Genjutsu', 'Пригодно MAGI-2'].map(t => el('th', { text: t })))),
+        el('tbody', {}, D.judge.table.map(r => el('tr', {}, el('td', { text: r.title }), el('td', { text: MODE[r.mode] }), el('td', { text: r.tasks }),
+          el('td', { class: r.magi_wins > r.prod_wins ? 'best' : '', text: r.magi_wins }), el('td', { text: r.ties }), el('td', { class: r.prod_wins > r.magi_wins ? 'best' : '', text: r.prod_wins }),
+          el('td', { text: r.q_prod?.toFixed(2) ?? '—' }), el('td', { text: r.q_magi?.toFixed(2) ?? '—' }), el('td', { text: r.crit_prod }), el('td', { text: r.crit_magi }),
+          el('td', { text: r.use_prod == null ? '—' : Math.round(r.use_prod * 100) + '%' }), el('td', { text: r.use_magi == null ? '—' : Math.round(r.use_magi * 100) + '%' }))),
+          ['swap', 'motion', 'all'].map(k => { const t = D.judge.total[k]; return el('tr', { class: 'sum' }, el('td', { text: 'Всего' }), el('td', { text: k === 'all' ? 'оба режима' : MODE[k] }), el('td', { text: t.tasks }),
+            el('td', { class: t.magi_wins > t.prod_wins ? 'best' : '', text: t.magi_wins }), el('td', { text: t.ties }), el('td', { class: t.prod_wins > t.magi_wins ? 'best' : '', text: t.prod_wins }),
+            el('td', { text: t.q_prod?.toFixed(2) ?? '—' }), el('td', { text: t.q_magi?.toFixed(2) ?? '—' }), el('td', { text: t.crit_prod }), el('td', { text: t.crit_magi }),
+            el('td', { text: t.use_prod == null ? '—' : Math.round(t.use_prod * 100) + '%' }), el('td', { text: t.use_magi == null ? '—' : Math.round(t.use_magi * 100) + '%' })); }))),
+    ] : []),
     el('h3', { text: 'Ход генераций: готово / отказов / всего' }),
     el('table', {}, el('thead', {}, el('tr', {}, ['Направление', 'Кейсов', ...D.systems.map(s => SYS[s].name)].map(t => el('th', { text: t })))),
       el('tbody', {}, prog.map(p => el('tr', {}, el('td', { text: p.b.title }), el('td', { text: p.n }),
